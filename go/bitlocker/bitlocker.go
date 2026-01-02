@@ -202,11 +202,11 @@ type Volume struct {
 
 // Status of the encryption or decryption on the volume
 type ConversionStatus struct {
-	ConversionStatus     uint32
-	EncryptionPercentage uint32
-	EncryptionFlags      uint32
-	WipingStatus         uint32
-	WipingPercentage     uint32
+	ConversionStatus     int32
+	EncryptionPercentage int32
+	EncryptionFlags      int32
+	WipingStatus         int32
+	WipingPercentage     int32
 }
 
 // Close frees all resources associated with a volume.
@@ -503,11 +503,11 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 	}
 
 	cs := ConversionStatus{
-		ConversionStatus:     conversionStatus.Value().(uint32),
-		EncryptionFlags:      encryptionFlags.Value().(uint32),
-		EncryptionPercentage: encryptionPercentage.Value().(uint32),
-		WipingStatus:         wipingStatus.Value().(uint32),
-		WipingPercentage:     wipingPercentage.Value().(uint32),
+		ConversionStatus:     conversionStatus.Value().(int32),
+		EncryptionFlags:      encryptionFlags.Value().(int32),
+		EncryptionPercentage: encryptionPercentage.Value().(int32),
+		WipingStatus:         wipingStatus.Value().(int32),
+		WipingPercentage:     wipingPercentage.Value().(int32),
 	}
 
 	return &cs, nil
