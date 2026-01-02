@@ -7,6 +7,8 @@
 // - DisableKeyProtectors
 // - GetConversionStatus
 // - ProtectKeyWithExternalKey
+// - EnableAutoUnlock
+// - DisableAutoUnlock
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -107,6 +109,7 @@ const (
 	FVE_E_OS_NOT_PROTECTED                 int32 = -2144272352
 	FVE_E_VOLUME_BOUND_ALREADY             int32 = -2144272353
 	E_INVALIDARG                           int32 = -2147024809
+	FVE_E_VOLUME_NOT_BOUND                 int32 = -2144272361
 )
 
 func encryptErrHandler(val int32) error {
@@ -227,6 +230,19 @@ func getConversionStatusErrHandler(val int32) error {
 		return fmt.Errorf("the volume is locked")
 	default:
 		return fmt.Errorf("error code returned when getting conversion status: %d", val)
+	}
+}
+
+func disableAutoUnlockErrHandler(val int32) error {
+	switch val {
+	case FVE_E_VOLUME_NOT_BOUND:
+		return fmt.Errorf("automatic unlocking on the volume is disabled")
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	case FVE_E_NOT_DATA_VOLUME:
+		return fmt.Errorf("the method cannot be run for the currently running operating system volume")
+	default:
+		return fmt.Errorf("error code returned when protecting with external key: %d", val)
 	}
 }
 
@@ -585,8 +601,6 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 
 // EnableAutoUnlock disables or suspends all key protectors associated with this volume.
 //
-// PrecisionFactor is a value from 0 to 4 that specifies the precision levels.
-//
 // Example: vol.EnableAutoUnlock("{9A43582E-B70D-4956-9031-B5D47D9EE797}")
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
@@ -596,6 +610,24 @@ func (v *Volume) EnableAutoUnlock(volumeKeyProtectorID string) error {
 		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.letter, enableAutoUnlockErrHandler(val))
+	}
+
+	return nil
+}
+
+// DisableAutoUnlock removes the external key saved onto the currently
+// running operating system volume so that a data volume is not automatically
+// unlocked when it is mounted.
+//
+// Example: vol.DisableAutoUnlock()
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) DisableAutoUnlock() error {
+	resultRaw, err := oleutil.CallMethod(v.handle, "DisableAutoUnlock")
+	if err != nil {
+		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.letter, disableAutoUnlockErrHandler(val))
 	}
 
 	return nil
