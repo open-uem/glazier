@@ -508,13 +508,7 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, getConversionStatusErrHandler(val))
 	}
 
-	cs := ConversionStatus{
-		ConversionStatus:     uint32(conversionStatus.Val),
-		EncryptionFlags:      uint32(encryptionFlags.Val),
-		EncryptionPercentage: uint32(encryptionPercentage.Val),
-		WipingStatus:         uint32(wipingStatus.Val),
-		WipingPercentage:     uint32(wipingPercentage.Val),
-	}
+	cs := ConversionStatus{}
 
 	return &cs, nil
 }
