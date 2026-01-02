@@ -208,6 +208,19 @@ func enableAutoUnlockErrHandler(val int32) error {
 	}
 }
 
+func protectKeyWithExternalKeyErrHandler(val int32) error {
+	switch val {
+	case E_INVALIDARG:
+		return fmt.Errorf("the ExternalKey parameter is provided but is not an array of size 4")
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	default:
+		return fmt.Errorf("error code returned when protecting with external key: %d", val)
+	}
+}
+
 func getConversionStatusErrHandler(val int32) error {
 	switch val {
 	case FVE_E_LOCKED_VOLUME:
@@ -451,7 +464,7 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 // This external key can be used to recover from the authentication failures of other key protectors
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpm-win32-encryptablevolume
-func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []uint8) (string, error) {
+func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey *[]uint8) (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
 	ole.VariantInit(&volumeKeyProtectorID)
 	var resultRaw *ole.VARIANT
@@ -466,7 +479,7 @@ func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []ui
 	if err != nil {
 		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.letter, encryptErrHandler(val))
+		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.letter, protectKeyWithExternalKeyErrHandler(val))
 	}
 
 	return volumeKeyProtectorID.ToString(), nil
