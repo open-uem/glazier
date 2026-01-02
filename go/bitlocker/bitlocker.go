@@ -28,7 +28,6 @@ package bitlocker
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
@@ -471,12 +470,18 @@ func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []ui
 	var resultRaw *ole.VARIANT
 	var err error
 
-	log.Println("external key is nil", externalKey == nil)
-
 	if friendlyName == "" {
-		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, externalKey, &volumeKeyProtectorID)
+		if externalKey == nil {
+			resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, nil, &volumeKeyProtectorID)
+		} else {
+			resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, externalKey, &volumeKeyProtectorID)
+		}
 	} else {
-		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", friendlyName, externalKey, &volumeKeyProtectorID)
+		if externalKey == nil {
+			resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", friendlyName, nil, &volumeKeyProtectorID)
+		} else {
+			resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", friendlyName, externalKey, &volumeKeyProtectorID)
+		}
 	}
 
 	if err != nil {
