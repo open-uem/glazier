@@ -553,7 +553,7 @@ func (v *Volume) DisableKeyProtectors(disableCount uint32) error {
 	return nil
 }
 
-// DisableKeyProtectors disables or suspends all key protectors associated with this volume.
+// GetConversionStatus indicates the status of the encryption or decryption on the volume
 //
 // PrecisionFactor is a value from 0 to 4 that specifies the precision levels.
 //
@@ -615,9 +615,8 @@ func (v *Volume) EnableAutoUnlock(volumeKeyProtectorID string) error {
 	return nil
 }
 
-// DisableAutoUnlock removes the external key saved onto the currently
-// running operating system volume so that a data volume is not automatically
-// unlocked when it is mounted.
+// DisableAutoUnlock removes the external key saved onto the currently // running operating
+// system volume so that a data volume is not automatically unlocked when it is mounted.
 //
 // Example: vol.DisableAutoUnlock()
 //
