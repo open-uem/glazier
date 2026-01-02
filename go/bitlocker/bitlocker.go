@@ -501,7 +501,7 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 		return nil, err
 	}
 
-	resultRaw, err := oleutil.CallMethod(v.handle, "GetConversionStatus", precisionFactor, &conversionStatus, &encryptionPercentage, &encryptionFlags, &wipingStatus, &wipingPercentage)
+	resultRaw, err := oleutil.CallMethod(v.handle, "GetConversionStatus", &conversionStatus, &encryptionPercentage, &encryptionFlags, &wipingStatus, &wipingPercentage, precisionFactor)
 	if err != nil {
 		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
@@ -509,11 +509,11 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 	}
 
 	cs := ConversionStatus{
-		ConversionStatus:     uint32(conversionStatus.Val),
-		EncryptionFlags:      uint32(encryptionFlags.Val),
-		EncryptionPercentage: uint32(encryptionPercentage.Val),
-		WipingStatus:         uint32(wipingStatus.Val),
-		WipingPercentage:     uint32(wipingPercentage.Val),
+		ConversionStatus:     conversionStatus.Value().(uint32),
+		EncryptionFlags:      encryptionFlags.Value().(uint32),
+		EncryptionPercentage: encryptionPercentage.Value().(uint32),
+		WipingStatus:         wipingStatus.Value().(uint32),
+		WipingPercentage:     wipingPercentage.Value().(uint32),
 	}
 
 	return &cs, nil
