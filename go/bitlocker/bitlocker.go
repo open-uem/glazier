@@ -103,6 +103,10 @@ const (
 	FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE     int32 = -2144272255
 	FVE_E_KEY_REQUIRED                     int32 = -2144272355
 	FVE_E_SECURE_KEY_REQUIRED              int32 = -2144272377
+	FVE_E_NOT_DATA_VOLUME                  int32 = -2144272359
+	FVE_E_OS_NOT_PROTECTED                 int32 = -2144272352
+	FVE_E_VOLUME_BOUND_ALREADY             int32 = -2144272353
+	E_INVALIDARG                           int32 = -2147024809
 )
 
 func encryptErrHandler(val int32) error {
@@ -180,6 +184,25 @@ func disableKeyProtectorsErrHandler(val int32) error {
 		return fmt.Errorf("no key protectors exist on the volume")
 	case FVE_E_LOCKED_VOLUME:
 		return fmt.Errorf("the volume is locked")
+	default:
+		return fmt.Errorf("error code returned during disable key protectors: %d", val)
+	}
+}
+
+func enableAutoUnlockErrHandler(val int32) error {
+	switch val {
+	case E_INVALIDARG:
+		return fmt.Errorf("The VolumeKeyProtectorID parameter does not refer to a valid key protector of the type External Key")
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	case FVE_E_NOT_DATA_VOLUME:
+		return fmt.Errorf("the method cannot be run for the currently running operating system volume")
+	case FVE_E_OS_NOT_PROTECTED:
+		return fmt.Errorf("the method cannot be run if the currently running operating system volume is not protected by BitLocker Drive Encryption or does not have encryption in progress")
+	case FVE_E_VOLUME_BOUND_ALREADY:
+		return fmt.Errorf("automatic unlocking on the volume has previously been enabled")
 	default:
 		return fmt.Errorf("error code returned during disable key protectors: %d", val)
 	}
@@ -457,7 +480,6 @@ func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []ui
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
 func (v *Volume) EnableKeyProtectors() error {
-
 	resultRaw, err := oleutil.CallMethod(v.handle, "EnableKeyProtectors")
 	if err != nil {
 		return fmt.Errorf("EnableKeyProtectors(%s): %w", v.letter, err)
@@ -538,4 +560,22 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 	}
 
 	return &cs, nil
+}
+
+// EnableAutoUnlock disables or suspends all key protectors associated with this volume.
+//
+// PrecisionFactor is a value from 0 to 4 that specifies the precision levels.
+//
+// Example: vol.EnableAutoUnlock("{9A43582E-B70D-4956-9031-B5D47D9EE797}")
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) EnableAutoUnlock(volumeKeyProtectorID string) error {
+	resultRaw, err := oleutil.CallMethod(v.handle, "EnableAutoUnlock", volumeKeyProtectorID)
+	if err != nil {
+		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.letter, enableAutoUnlockErrHandler(val))
+	}
+
+	return nil
 }
