@@ -97,6 +97,7 @@ const (
 	FVE_E_INVALID_PROTECTOR_TYPE           int32 = -2144272326
 	FVE_E_POLICY_INVALID_PASSPHRASE_LENGTH int32 = -2144272256
 	FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE     int32 = -2144272255
+	FVE_E_KEY_REQUIRED                     int32 = -2144272355
 )
 
 func encryptErrHandler(val int32) error {
@@ -150,6 +151,8 @@ func changePassphraseErrHandler(val int32) error {
 		return fmt.Errorf("the updated passphrase provided does not meet the minimum or maximum length requirements")
 	case FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE:
 		return fmt.Errorf("the updated passphrase does not meet the complexity requirements set by the administrator in group policy")
+	case FVE_E_KEY_REQUIRED:
+		return fmt.Errorf("The last key protector for a partially or fully encrypted volume cannot be removed if key protectors are enabled")
 	default:
 		return fmt.Errorf("error code returned during change passphrase: %d", val)
 	}
