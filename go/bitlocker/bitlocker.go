@@ -5,6 +5,8 @@
 // - ChangePassphrase
 // - EnableKeyProtectors
 // - DisableKeyProtectors
+// - GetConversionStatus
+// - ProtectKeyWithExternalKey
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -420,6 +422,31 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 	}
 
 	return nil
+}
+
+// ProtectKeyWithExternalKey secures the volume's encryption key with a 256-bit external key.
+// This external key can be used to recover from the authentication failures of other key protectors
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpm-win32-encryptablevolume
+func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []uint8) (string, error) {
+	var volumeKeyProtectorID ole.VARIANT
+	ole.VariantInit(&volumeKeyProtectorID)
+	var resultRaw *ole.VARIANT
+	var err error
+
+	if friendlyName == "" {
+		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, externalKey, &volumeKeyProtectorID)
+	} else {
+		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", friendlyName, externalKey, &volumeKeyProtectorID)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.letter, encryptErrHandler(val))
+	}
+
+	return volumeKeyProtectorID.ToString(), nil
 }
 
 // EnableKeyProtectors enables or resumes all disabled or suspended key protectors.
