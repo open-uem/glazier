@@ -28,6 +28,7 @@ package bitlocker
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
@@ -464,14 +465,16 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 // This external key can be used to recover from the authentication failures of other key protectors
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpm-win32-encryptablevolume
-func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey *[]uint8) (string, error) {
+func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []uint8) (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
 	ole.VariantInit(&volumeKeyProtectorID)
 	var resultRaw *ole.VARIANT
 	var err error
 
+	log.Println("external key is nil", externalKey == nil)
+
 	if friendlyName == "" {
-		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, nil, &volumeKeyProtectorID)
+		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, externalKey, &volumeKeyProtectorID)
 	} else {
 		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", friendlyName, externalKey, &volumeKeyProtectorID)
 	}
