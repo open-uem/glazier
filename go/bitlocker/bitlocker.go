@@ -476,32 +476,26 @@ func (v *Volume) DisableKeyProtectors(disableCount uint32) error {
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
 func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus, error) {
 	var conversionStatus ole.VARIANT
+	ole.VariantInit(&conversionStatus)
 	var encryptionPercentage ole.VARIANT
+	ole.VariantInit(&encryptionPercentage)
 	var encryptionFlags ole.VARIANT
+	ole.VariantInit(&encryptionFlags)
 	var wipingStatus ole.VARIANT
+	ole.VariantInit(&wipingStatus)
 	var wipingPercentage ole.VARIANT
+	ole.VariantInit(&wipingPercentage)
 
-	if err := ole.VariantInit(&conversionStatus); err != nil {
-		return nil, err
-	}
+	resultRaw, err := oleutil.CallMethod(
+		v.handle, "GetConversionStatus",
+		&conversionStatus,
+		&encryptionPercentage,
+		&encryptionFlags,
+		&wipingStatus,
+		&wipingPercentage,
+		0,
+	)
 
-	if err := ole.VariantInit(&encryptionPercentage); err != nil {
-		return nil, err
-	}
-
-	if err := ole.VariantInit(&encryptionFlags); err != nil {
-		return nil, err
-	}
-
-	if err := ole.VariantInit(&wipingStatus); err != nil {
-		return nil, err
-	}
-
-	if err := ole.VariantInit(&wipingPercentage); err != nil {
-		return nil, err
-	}
-
-	resultRaw, err := oleutil.CallMethod(v.handle, "GetConversionStatus", &conversionStatus, &encryptionPercentage, &encryptionFlags, &wipingStatus, &wipingPercentage, precisionFactor)
 	if err != nil {
 		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
