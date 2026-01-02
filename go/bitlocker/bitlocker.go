@@ -1,5 +1,7 @@
 // Copyright 2021 Google LLC
 //
+// Copyright 2026 Miguel Angel Alvarez Cabrerizo for the following methods
+// - Volume Decrypt
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -21,11 +23,11 @@ package bitlocker
 import (
 	"fmt"
 
-	"github.com/google/deck"
-	"github.com/scjalliance/comshim"
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
-	"github.com/iamacarpet/go-win64api"
+	"github.com/google/deck"
+	winapi "github.com/iamacarpet/go-win64api"
+	"github.com/scjalliance/comshim"
 )
 
 var (
@@ -86,6 +88,8 @@ const (
 	FVE_E_INVALID_PASSWORD_FORMAT       int32 = -2144272331
 	FVE_E_BOOTABLE_CDDVD                int32 = -2144272336
 	FVE_E_PROTECTOR_EXISTS              int32 = -2144272335
+	FVE_E_LOCKED_VOLUME                 int32 = -2144272384
+	FVE_E_AUTOUNLOCK_ENABLED            int32 = -2144272343
 )
 
 func encryptErrHandler(val int32) error {
@@ -111,6 +115,17 @@ func encryptErrHandler(val int32) error {
 		return fmt.Errorf("key protector cannot be added; only one key protector of this type is allowed for this drive")
 	default:
 		return fmt.Errorf("error code returned during encryption: %d", val)
+	}
+}
+
+func decryptErrHandler(val int32) error {
+	switch val {
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	case FVE_E_AUTOUNLOCK_ENABLED:
+		return fmt.Errorf("this volume cannot be decrypted because keys used to automatically unlock data volumes are available. Use ClearAllAutoUnlockKeys to remove these keys")
+	default:
+		return fmt.Errorf("error code returned during decryption: %d", val)
 	}
 }
 
@@ -185,6 +200,22 @@ func (v *Volume) Encrypt(method EncryptionMethod, flags EncryptionFlag) error {
 		return fmt.Errorf("Encrypt(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return fmt.Errorf("Encrypt(%s): %w", v.letter, encryptErrHandler(val))
+	}
+
+	return nil
+}
+
+// Decrypt encrypts the volume.
+//
+// Example: vol.Decrypt()
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) Decrypt() error {
+	resultRaw, err := oleutil.CallMethod(v.handle, "Decrypt")
+	if err != nil {
+		return fmt.Errorf("Decrypt(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("Decrypt(%s): %w", v.letter, decryptErrHandler(val))
 	}
 
 	return nil
