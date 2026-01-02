@@ -1,8 +1,10 @@
 // Copyright 2021 Google LLC
 //
 // Copyright 2026 Miguel Angel Alvarez Cabrerizo for the following methods
-// - Volume Decrypt
-// - Volume ChangePassphrase
+// - Decrypt
+// - ChangePassphrase
+// - EnableKeyProtectors
+// - DisableKeyProtectors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -98,6 +100,7 @@ const (
 	FVE_E_POLICY_INVALID_PASSPHRASE_LENGTH int32 = -2144272256
 	FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE     int32 = -2144272255
 	FVE_E_KEY_REQUIRED                     int32 = -2144272355
+	FVE_E_SECURE_KEY_REQUIRED              int32 = -2144272377
 )
 
 func encryptErrHandler(val int32) error {
@@ -155,6 +158,28 @@ func changePassphraseErrHandler(val int32) error {
 		return fmt.Errorf("The last key protector for a partially or fully encrypted volume cannot be removed if key protectors are enabled")
 	default:
 		return fmt.Errorf("error code returned during change passphrase: %d", val)
+	}
+}
+
+func enableKeyProtectorsErrHandler(val int32) error {
+	switch val {
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	default:
+		return fmt.Errorf("error code returned during enable key protectors: %d", val)
+	}
+}
+
+func disableKeyProtectorsErrHandler(val int32) error {
+	switch val {
+	case FVE_E_SECURE_KEY_REQUIRED:
+		return fmt.Errorf("no key protectors exist on the volume")
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	default:
+		return fmt.Errorf("error code returned during disable key protectors: %d", val)
 	}
 }
 
@@ -374,6 +399,51 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.letter, encryptErrHandler(val))
+	}
+
+	return nil
+}
+
+// EnableKeyProtectors enables or resumes all disabled or suspended key protectors.
+// You can use this method to reenable or resume BitLocker protection on an encrypted volume.
+// This method ensures that the volume's encryption key is not exposed in the clear on the hard disk.
+//
+// Example: vol.EnableKeyProtectors()
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) EnableKeyProtectors() error {
+
+	resultRaw, err := oleutil.CallMethod(v.handle, "EnableKeyProtectors")
+	if err != nil {
+		return fmt.Errorf("EnableKeyProtectors(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("EnableKeyProtectors(%s): %w", v.letter, enableKeyProtectorsErrHandler(val))
+	}
+
+	return nil
+}
+
+// DisableKeyProtectors disables or suspends all key protectors associated with this volume.
+//
+// DisableCount is an optional integer that specifies the number of reboots for which the key
+// protectors will be disabled. This parameter is only available on OS volumes.
+
+// Example: vol.DisableKeyProtectors(0)
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) DisableKeyProtectors(disableCount uint32) error {
+	var resultRaw *ole.VARIANT
+	var err error
+
+	if disableCount > 0 {
+		resultRaw, err = oleutil.CallMethod(v.handle, "DisableKeyProtectors", disableCount)
+	} else {
+		resultRaw, err = oleutil.CallMethod(v.handle, "DisableKeyProtectors", nil)
+	}
+	if err != nil {
+		return fmt.Errorf("DisableKeyProtectors(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("DisableKeyProtectors(%s): %w", v.letter, disableKeyProtectorsErrHandler(val))
 	}
 
 	return nil
