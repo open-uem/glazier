@@ -471,7 +471,7 @@ func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey *[]u
 	var err error
 
 	if friendlyName == "" {
-		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, externalKey, &volumeKeyProtectorID)
+		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", nil, nil, &volumeKeyProtectorID)
 	} else {
 		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithExternalKey", friendlyName, externalKey, &volumeKeyProtectorID)
 	}
