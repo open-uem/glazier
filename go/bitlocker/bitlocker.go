@@ -183,12 +183,30 @@ func disableKeyProtectorsErrHandler(val int32) error {
 	}
 }
 
+func getConversionStatusErrHandler(val int32) error {
+	switch val {
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	default:
+		return fmt.Errorf("error code returned when getting conversion status: %d", val)
+	}
+}
+
 // A Volume tracks an open encryptable volume.
 type Volume struct {
 	letter  string
 	handle  *ole.IDispatch
 	wmiIntf *ole.IDispatch
 	wmiSvc  *ole.IDispatch
+}
+
+// Status of the encryption or decryption on the volume
+type ConversionStatus struct {
+	ConversionStatus     uint32
+	EncryptionPercentage uint32
+	EncryptionFlags      uint32
+	WipingStatus         uint32
+	WipingPercentage     uint32
 }
 
 // Close frees all resources associated with a volume.
@@ -427,7 +445,7 @@ func (v *Volume) EnableKeyProtectors() error {
 //
 // DisableCount is an optional integer that specifies the number of reboots for which the key
 // protectors will be disabled. This parameter is only available on OS volumes.
-
+//
 // Example: vol.DisableKeyProtectors(0)
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
@@ -447,4 +465,56 @@ func (v *Volume) DisableKeyProtectors(disableCount uint32) error {
 	}
 
 	return nil
+}
+
+// DisableKeyProtectors disables or suspends all key protectors associated with this volume.
+//
+// PrecisionFactor is a value from 0 to 4 that specifies the precision levels.
+//
+// Example: vol.GetConversionStatus(2)
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus, error) {
+	var conversionStatus ole.VARIANT
+	var encryptionPercentage ole.VARIANT
+	var encryptionFlags ole.VARIANT
+	var wipingStatus ole.VARIANT
+	var wipingPercentage ole.VARIANT
+
+	if err := ole.VariantInit(&conversionStatus); err != nil {
+		return nil, err
+	}
+
+	if err := ole.VariantInit(&encryptionPercentage); err != nil {
+		return nil, err
+	}
+
+	if err := ole.VariantInit(&encryptionFlags); err != nil {
+		return nil, err
+	}
+
+	if err := ole.VariantInit(&wipingStatus); err != nil {
+		return nil, err
+	}
+
+	if err := ole.VariantInit(&wipingPercentage); err != nil {
+		return nil, err
+	}
+
+	resultRaw, err := oleutil.CallMethod(v.handle, "GetConversionStatus", &conversionStatus, &encryptionPercentage, &encryptionFlags, &wipingStatus, &wipingPercentage, precisionFactor)
+	if err != nil {
+		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, getConversionStatusErrHandler(val))
+	}
+
+	cs := ConversionStatus{
+		ConversionStatus:     uint32(conversionStatus.Val),
+		EncryptionFlags:      uint32(encryptionFlags.Val),
+		EncryptionPercentage: uint32(encryptionPercentage.Val),
+		WipingStatus:         uint32(wipingStatus.Val),
+		WipingPercentage:     uint32(wipingPercentage.Val),
+	}
+
+	return &cs, nil
 }
