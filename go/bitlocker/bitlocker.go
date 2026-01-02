@@ -253,20 +253,20 @@ func (v *Volume) Decrypt() error {
 // Example: vol.ChangePassphrase()
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
-func (v *Volume) ChangePassphrase(volumeKeyProtectorID string, newPassphrase string) error {
+func (v *Volume) ChangePassphrase(volumeKeyProtectorID string, newPassphrase string) (string, error) {
 	var newVolumeKeyProtectorID ole.VARIANT
 	if err := ole.VariantInit(&newVolumeKeyProtectorID); err != nil {
-		return err
+		return "", err
 	}
 
 	resultRaw, err := oleutil.CallMethod(v.handle, "ChangePassphrase", string(volumeKeyProtectorID), string(newPassphrase), &newVolumeKeyProtectorID)
 	if err != nil {
-		return fmt.Errorf("ChangePassphrase(%s): %w", v.letter, err)
+		return "", fmt.Errorf("ChangePassphrase(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ChangePassphrase(%s): %w", v.letter, changePassphraseErrHandler(val))
+		return "", fmt.Errorf("ChangePassphrase(%s): %w", v.letter, changePassphraseErrHandler(val))
 	}
 
-	return nil
+	return newVolumeKeyProtectorID.ToString(), nil
 }
 
 // DiscoveryVolumeType specifies the type of discovery volume to be used by Prepare.
