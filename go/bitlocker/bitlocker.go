@@ -2,6 +2,8 @@
 //
 // Copyright 2026 Miguel Angel Alvarez Cabrerizo for the following methods
 // - Volume Decrypt
+// - Volume ChangePassphrase
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -79,17 +81,22 @@ const (
 	EncryptSynchronous EncryptionFlag = 0x00010000
 
 	// Error Codes
-	ERROR_IO_DEVICE                     int32 = -2147023779
-	FVE_E_EDRIVE_INCOMPATIBLE_VOLUME    int32 = -2144272206
-	FVE_E_NO_TPM_WITH_PASSPHRASE        int32 = -2144272212
-	FVE_E_PASSPHRASE_TOO_LONG           int32 = -2144272214
-	FVE_E_POLICY_PASSPHRASE_NOT_ALLOWED int32 = -2144272278
-	FVE_E_NOT_DECRYPTED                 int32 = -2144272327
-	FVE_E_INVALID_PASSWORD_FORMAT       int32 = -2144272331
-	FVE_E_BOOTABLE_CDDVD                int32 = -2144272336
-	FVE_E_PROTECTOR_EXISTS              int32 = -2144272335
-	FVE_E_LOCKED_VOLUME                 int32 = -2144272384
-	FVE_E_AUTOUNLOCK_ENABLED            int32 = -2144272343
+	ERROR_IO_DEVICE                        int32 = -2147023779
+	FVE_E_EDRIVE_INCOMPATIBLE_VOLUME       int32 = -2144272206
+	FVE_E_NO_TPM_WITH_PASSPHRASE           int32 = -2144272212
+	FVE_E_PASSPHRASE_TOO_LONG              int32 = -2144272214
+	FVE_E_POLICY_PASSPHRASE_NOT_ALLOWED    int32 = -2144272278
+	FVE_E_NOT_DECRYPTED                    int32 = -2144272327
+	FVE_E_INVALID_PASSWORD_FORMAT          int32 = -2144272331
+	FVE_E_BOOTABLE_CDDVD                   int32 = -2144272336
+	FVE_E_PROTECTOR_EXISTS                 int32 = -2144272335
+	FVE_E_LOCKED_VOLUME                    int32 = -2144272384
+	FVE_E_AUTOUNLOCK_ENABLED               int32 = -2144272343
+	FVE_E_NOT_ACTIVATED                    int32 = -2144272376
+	FVE_E_OVERLAPPED_UPDATE                int32 = -2144272348
+	FVE_E_INVALID_PROTECTOR_TYPE           int32 = -2144272326
+	FVE_E_POLICY_INVALID_PASSPHRASE_LENGTH int32 = -2144272256
+	FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE     int32 = -2144272255
 )
 
 func encryptErrHandler(val int32) error {
@@ -126,6 +133,25 @@ func decryptErrHandler(val int32) error {
 		return fmt.Errorf("this volume cannot be decrypted because keys used to automatically unlock data volumes are available. Use ClearAllAutoUnlockKeys to remove these keys")
 	default:
 		return fmt.Errorf("error code returned during decryption: %d", val)
+	}
+}
+
+func changePassphraseErrHandler(val int32) error {
+	switch val {
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is already locked by BitLocker Drive Encryption. You must unlock the drive from Control Panel")
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	case FVE_E_OVERLAPPED_UPDATE:
+		return fmt.Errorf("the control block for the encrypted volume was updated by another thread")
+	case FVE_E_INVALID_PROTECTOR_TYPE:
+		return fmt.Errorf("The specified key protector is not of the correct type")
+	case FVE_E_POLICY_INVALID_PASSPHRASE_LENGTH:
+		return fmt.Errorf("the updated passphrase provided does not meet the minimum or maximum length requirements")
+	case FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE:
+		return fmt.Errorf("the updated passphrase does not meet the complexity requirements set by the administrator in group policy")
+	default:
+		return fmt.Errorf("error code returned during change passphrase: %d", val)
 	}
 }
 
@@ -221,6 +247,28 @@ func (v *Volume) Decrypt() error {
 	return nil
 }
 
+// ChangePassphrase uses the new passphrase to obtain a new derived key. After the derived key is calculated,
+// the new derived key is used to secure the encrypted volume's master key.
+//
+// Example: vol.ChangePassphrase()
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) ChangePassphrase(volumeKeyProtectorID string, newPassphrase string) error {
+	var newVolumeKeyProtectorID ole.VARIANT
+	if err := ole.VariantInit(&newVolumeKeyProtectorID); err != nil {
+		return err
+	}
+
+	resultRaw, err := oleutil.CallMethod(v.handle, "ChangePassphrase", string(volumeKeyProtectorID), string(newPassphrase), &newVolumeKeyProtectorID)
+	if err != nil {
+		return fmt.Errorf("ChangePassphrase(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("ChangePassphrase(%s): %w", v.letter, changePassphraseErrHandler(val))
+	}
+
+	return nil
+}
+
 // DiscoveryVolumeType specifies the type of discovery volume to be used by Prepare.
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/preparevolume-win32-encryptablevolume
@@ -293,17 +341,17 @@ func (v *Volume) ProtectWithNumericalPassword(password string) error {
 // ProtectWithPassphrase adds a passphrase key protector.
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithpassphrase-win32-encryptablevolume
-func (v *Volume) ProtectWithPassphrase(passphrase string) error {
+func (v *Volume) ProtectWithPassphrase(passphrase string) (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
 	ole.VariantInit(&volumeKeyProtectorID)
 	resultRaw, err := oleutil.CallMethod(v.handle, "ProtectKeyWithPassphrase", nil, passphrase, &volumeKeyProtectorID)
 	if err != nil {
-		return fmt.Errorf("ProtectWithPassphrase(%s): %w", v.letter, err)
+		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ProtectWithPassphrase(%s): %w", v.letter, encryptErrHandler(val))
+		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.letter, encryptErrHandler(val))
 	}
 
-	return nil
+	return volumeKeyProtectorID.ToString(), nil
 }
 
 // ProtectWithTPM adds the TPM key protector.
