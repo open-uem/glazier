@@ -35,7 +35,6 @@ import (
 	"github.com/go-ole/go-ole/oleutil"
 	"github.com/google/deck"
 	winapi "github.com/iamacarpet/go-win64api"
-	"github.com/scjalliance/comshim"
 )
 
 var (
@@ -268,7 +267,6 @@ func (v *Volume) Close() {
 	v.handle.Release()
 	v.wmiIntf.Release()
 	v.wmiSvc.Release()
-	comshim.Done()
 }
 
 // Connect connects to an encryptable volume in order to manage it.
@@ -276,18 +274,15 @@ func (v *Volume) Close() {
 //
 // Example: bitlocker.Connect("c:")
 func Connect(driveLetter string) (Volume, error) {
-	comshim.Add(1)
 	v := Volume{letter: driveLetter}
 
 	unknown, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
 	if err != nil {
-		comshim.Done()
 		return v, fmt.Errorf("CreateObject: %w", err)
 	}
 	defer unknown.Release()
 	v.wmiIntf, err = unknown.QueryInterface(ole.IID_IDispatch)
 	if err != nil {
-		comshim.Done()
 		return v, fmt.Errorf("QueryInterface: %w", err)
 	}
 	serviceRaw, err := oleutil.CallMethod(v.wmiIntf, "ConnectServer", nil, `\\.\ROOT\CIMV2\Security\MicrosoftVolumeEncryption`)
