@@ -30,6 +30,7 @@ package bitlocker
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
@@ -261,7 +262,7 @@ type Volume struct {
 	ConversionStatus                 string
 	DeviceID                         string
 	DriveLetter                      string
-	EncryptionMethod                 string
+	EncryptionMethod                 uint32
 	IsVolumeInitializedForProtection bool
 	PersistentVolumeID               string
 	ProtectionStatus                 uint32
@@ -321,6 +322,72 @@ func Connect(driveLetter string) (Volume, error) {
 	}
 	result := raw.ToIDispatch()
 	defer result.Release()
+
+	// Get DeviceID
+	resDeviceID, err := oleutil.GetProperty(result, "DeviceID")
+	if err != nil {
+		return v, fmt.Errorf("Error while getting property DeviceID from Win32_EncryptableVolume info. %s", err.Error())
+	}
+	v.DeviceID = resDeviceID.ToString()
+
+	// Get EncryptionMethod
+	resEncryptionMethod, err := oleutil.GetProperty(result, "ProtectionSEncryptionMethodtatus")
+	if err != nil {
+		return v, fmt.Errorf("Error while getting property EncryptionMethod from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resEncryptionMethod.Value() != nil {
+		if res, ok := resEncryptionMethod.Value().(uint32); ok {
+			v.EncryptionMethod = res
+		} else {
+			return v, fmt.Errorf("Error while setting EncryptionMethod property to uint32. Got type %s", reflect.TypeOf(resEncryptionMethod.Value()).Name())
+		}
+	}
+
+	// IsVolumeInitializedForProtection
+	resIsVolumeInitializedForProtection, err := oleutil.GetProperty(result, "IsVolumeInitializedForProtection")
+	if err != nil {
+		return v, fmt.Errorf("Error while getting property IsVolumeInitializedForProtection from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resIsVolumeInitializedForProtection.Value() != nil {
+		if res, ok := resIsVolumeInitializedForProtection.Value().(bool); ok {
+			v.IsVolumeInitializedForProtection = res
+		} else {
+			return v, fmt.Errorf("Error while setting IsVolumeInitializedForProtection property to uint32. Got type %s", reflect.TypeOf(resIsVolumeInitializedForProtection.Value()).Name())
+		}
+	}
+
+	// Get PersistentVolumeID
+	resPersistentVolumeID, err := oleutil.GetProperty(result, "PersistentVolumeID")
+	if err != nil {
+		return v, fmt.Errorf("Error while getting property PersistentVolumeID from Win32_EncryptableVolume info. %s", err.Error())
+	}
+	v.PersistentVolumeID = resPersistentVolumeID.ToString()
+
+	// Get ProtectionStatus
+	resProtectionStatus, err := oleutil.GetProperty(result, "ProtectionStatus")
+	if err != nil {
+		return v, fmt.Errorf("Error while getting property ProtectionStatus from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resProtectionStatus.Value() != nil {
+		if res, ok := resProtectionStatus.Value().(uint32); ok {
+			v.ProtectionStatus = res
+		} else {
+			return v, fmt.Errorf("Error while setting ProtectionStatus property to uint32. Got type %s", reflect.TypeOf(resProtectionStatus.Value()).Name())
+		}
+	}
+
+	// Get VolumeType
+	resVolumeType, err := oleutil.GetProperty(result, "VolumeType")
+	if err != nil {
+		return v, fmt.Errorf("Error while getting property VolumeType from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resVolumeType.Value() != nil {
+		if res, ok := resVolumeType.Value().(uint32); ok {
+			v.VolumeType = res
+		} else {
+			return v, fmt.Errorf("Error while setting VolumeType property to uint32. Got type %s", reflect.TypeOf(resVolumeType.Value()).Name())
+		}
+	}
 
 	itemRaw, err := oleutil.CallMethod(result, "ItemIndex", 0)
 	if err != nil {
