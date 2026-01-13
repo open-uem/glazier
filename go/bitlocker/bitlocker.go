@@ -62,6 +62,16 @@ func BackupToAD() error {
 	return funcBackup(volIDs)
 }
 
+// Volume Type
+// https://docs.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume
+type VolumeType uint32
+
+const (
+	VolumeTypeSystem VolumeType = iota
+	VolumeTypeFixedDisk
+	VolumeTypeRemovable
+)
+
 // Encryption Methods
 // https://docs.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume
 type EncryptionMethod int32
