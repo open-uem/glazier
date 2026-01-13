@@ -259,7 +259,7 @@ func disableAutoUnlockErrHandler(val int32) error {
 
 // A Volume tracks an open encryptable volume.
 type Volume struct {
-	ConversionStatus                 string
+	ConversionStatus                 uint32
 	DeviceID                         string
 	DriveLetter                      string
 	EncryptionMethod                 uint32
@@ -322,52 +322,6 @@ func Connect(driveLetter string) (Volume, error) {
 	}
 	result := raw.ToIDispatch()
 	defer result.Release()
-
-	// Get EncryptionMethod
-	resEncryptionMethod, err := oleutil.GetProperty(result, "EncryptionMethod")
-	if err != nil {
-		return v, fmt.Errorf("Error while getting property EncryptionMethod from Win32_EncryptableVolume. %s", err.Error())
-	}
-	if resEncryptionMethod.Value() != nil {
-		if res, ok := resEncryptionMethod.Value().(uint32); ok {
-			v.EncryptionMethod = res
-		} else {
-			return v, fmt.Errorf("Error while setting EncryptionMethod property to uint32. Got type %s", reflect.TypeOf(resEncryptionMethod.Value()).Name())
-		}
-	}
-
-	// Get IsVolumeInitializedForProtection
-	resIsVolumeInitializedForProtection, err := oleutil.GetProperty(result, "IsVolumeInitializedForProtection")
-	if err != nil {
-		return v, fmt.Errorf("Error while getting property IsVolumeInitializedForProtection from Win32_EncryptableVolume. %s", err.Error())
-	}
-	if resIsVolumeInitializedForProtection.Value() != nil {
-		if res, ok := resIsVolumeInitializedForProtection.Value().(bool); ok {
-			v.IsVolumeInitializedForProtection = res
-		} else {
-			return v, fmt.Errorf("Error while setting IsVolumeInitializedForProtection property to uint32. Got type %s", reflect.TypeOf(resIsVolumeInitializedForProtection.Value()).Name())
-		}
-	}
-
-	// Get PersistentVolumeID
-	resPersistentVolumeID, err := oleutil.GetProperty(result, "PersistentVolumeID")
-	if err != nil {
-		return v, fmt.Errorf("Error while getting property PersistentVolumeID from Win32_EncryptableVolume info. %s", err.Error())
-	}
-	v.PersistentVolumeID = resPersistentVolumeID.ToString()
-
-	// Get ProtectionStatus
-	resProtectionStatus, err := oleutil.GetProperty(result, "ProtectionStatus")
-	if err != nil {
-		return v, fmt.Errorf("Error while getting property ProtectionStatus from Win32_EncryptableVolume. %s", err.Error())
-	}
-	if resProtectionStatus.Value() != nil {
-		if res, ok := resProtectionStatus.Value().(uint32); ok {
-			v.ProtectionStatus = res
-		} else {
-			return v, fmt.Errorf("Error while setting ProtectionStatus property to uint32. Got type %s", reflect.TypeOf(resProtectionStatus.Value()).Name())
-		}
-	}
 
 	// Get VolumeType
 	resVolumeType, err := oleutil.GetProperty(result, "VolumeType")
@@ -704,6 +658,76 @@ func (v *Volume) DisableAutoUnlock() error {
 		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.DriveLetter, disableAutoUnlockErrHandler(val))
+	}
+
+	return nil
+}
+
+func (v *Volume) GetProperties() error {
+	// Get ConversionStatus
+	resConversionStatus, err := oleutil.GetProperty(v.handle, "ProtectionConversionStatusStatus")
+	if err != nil {
+		return fmt.Errorf("Error while getting property ConversionStatus from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resConversionStatus.Value() != nil {
+		if res, ok := resConversionStatus.Value().(uint32); ok {
+			v.ConversionStatus = res
+		} else {
+			return fmt.Errorf("Error while setting ConversionStatus property to uint32. Got type %s", reflect.TypeOf(resConversionStatus.Value()).Name())
+		}
+	}
+
+	// Get DeviceID
+	resDeviceID, err := oleutil.GetProperty(v.handle, "DeviceID")
+	if err != nil {
+		return fmt.Errorf("Error while getting property DeviceID from Win32_EncryptableVolume info. %s", err.Error())
+	}
+	v.DeviceID = resDeviceID.ToString()
+
+	// Get EncryptionMethod
+	resEncryptionMethod, err := oleutil.GetProperty(v.handle, "ProtectionSEncryptionMethodtatus")
+	if err != nil {
+		return fmt.Errorf("Error while getting property EncryptionMethod from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resEncryptionMethod.Value() != nil {
+		if res, ok := resEncryptionMethod.Value().(uint32); ok {
+			v.EncryptionMethod = res
+		} else {
+			return fmt.Errorf("Error while setting EncryptionMethod property to uint32. Got type %s", reflect.TypeOf(resEncryptionMethod.Value()).Name())
+		}
+	}
+
+	// IsVolumeInitializedForProtection
+	resIsVolumeInitializedForProtection, err := oleutil.GetProperty(v.handle, "IsVolumeInitializedForProtection")
+	if err != nil {
+		return fmt.Errorf("Error while getting property IsVolumeInitializedForProtection from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resIsVolumeInitializedForProtection.Value() != nil {
+		if res, ok := resIsVolumeInitializedForProtection.Value().(bool); ok {
+			v.IsVolumeInitializedForProtection = res
+		} else {
+			return fmt.Errorf("Error while setting IsVolumeInitializedForProtection property to uint32. Got type %s", reflect.TypeOf(resIsVolumeInitializedForProtection.Value()).Name())
+		}
+	}
+
+	// Get PersistentVolumeID
+	resPersistentVolumeID, err := oleutil.GetProperty(v.handle, "PersistentVolumeID")
+	if err != nil {
+		return fmt.Errorf("Error while getting property PersistentVolumeID from Win32_EncryptableVolume info. %s", err.Error())
+	}
+	v.PersistentVolumeID = resPersistentVolumeID.ToString()
+
+	// Get ProtectionStatus
+	resProtectionStatus, err := oleutil.GetProperty(v.handle, "ProtectionStatus")
+	if err != nil {
+		return fmt.Errorf("Error while getting property ProtectionStatus from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resProtectionStatus.Value() != nil {
+		if res, ok := resProtectionStatus.Value().(uint32); ok {
+			v.ProtectionStatus = res
+		} else {
+			return fmt.Errorf("Error while setting ProtectionStatus property to uint32. Got type %s", reflect.TypeOf(resProtectionStatus.Value()).Name())
+		}
 	}
 
 	return nil
