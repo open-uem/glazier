@@ -657,10 +657,10 @@ func (v *Volume) GetProperties() error {
 		return fmt.Errorf("Error while getting property ConversionStatus from Win32_EncryptableVolume. %s", err.Error())
 	}
 	if resConversionStatus.Value() != nil {
-		if res, ok := resConversionStatus.Value().(uint32); ok {
-			v.ConversionStatus = res
+		if res, ok := resConversionStatus.Value().(int32); ok {
+			v.ConversionStatus = uint32(res)
 		} else {
-			return fmt.Errorf("Error while setting ConversionStatus property to uint32. Got type %s", reflect.TypeOf(resConversionStatus.Value()).Name())
+			return fmt.Errorf("Error while setting ConversionStatus property to int32. Got type %s", reflect.TypeOf(resConversionStatus.Value()).Name())
 		}
 	}
 
@@ -677,10 +677,10 @@ func (v *Volume) GetProperties() error {
 		return fmt.Errorf("Error while getting property EncryptionMethod from Win32_EncryptableVolume. %s", err.Error())
 	}
 	if resEncryptionMethod.Value() != nil {
-		if res, ok := resEncryptionMethod.Value().(uint32); ok {
-			v.EncryptionMethod = res
+		if res, ok := resEncryptionMethod.Value().(int32); ok {
+			v.EncryptionMethod = uint32(res)
 		} else {
-			return fmt.Errorf("Error while setting EncryptionMethod property to uint32. Got type %s", reflect.TypeOf(resEncryptionMethod.Value()).Name())
+			return fmt.Errorf("Error while setting EncryptionMethod property to int32. Got type %s", reflect.TypeOf(resEncryptionMethod.Value()).Name())
 		}
 	}
 
@@ -693,7 +693,7 @@ func (v *Volume) GetProperties() error {
 		if res, ok := resIsVolumeInitializedForProtection.Value().(bool); ok {
 			v.IsVolumeInitializedForProtection = res
 		} else {
-			return fmt.Errorf("Error while setting IsVolumeInitializedForProtection property to uint32. Got type %s", reflect.TypeOf(resIsVolumeInitializedForProtection.Value()).Name())
+			return fmt.Errorf("Error while setting IsVolumeInitializedForProtection property to bool. Got type %s", reflect.TypeOf(resIsVolumeInitializedForProtection.Value()).Name())
 		}
 	}
 
@@ -710,10 +710,10 @@ func (v *Volume) GetProperties() error {
 		return fmt.Errorf("Error while getting property ProtectionStatus from Win32_EncryptableVolume. %s", err.Error())
 	}
 	if resProtectionStatus.Value() != nil {
-		if res, ok := resProtectionStatus.Value().(uint32); ok {
-			v.ProtectionStatus = res
+		if res, ok := resProtectionStatus.Value().(int32); ok {
+			v.ProtectionStatus = uint32(res)
 		} else {
-			return fmt.Errorf("Error while setting ProtectionStatus property to uint32. Got type %s", reflect.TypeOf(resProtectionStatus.Value()).Name())
+			return fmt.Errorf("Error while setting ProtectionStatus property to int32. Got type %s", reflect.TypeOf(resProtectionStatus.Value()).Name())
 		}
 	}
 
