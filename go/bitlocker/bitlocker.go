@@ -323,15 +323,8 @@ func Connect(driveLetter string) (Volume, error) {
 	result := raw.ToIDispatch()
 	defer result.Release()
 
-	// Get DeviceID
-	resDeviceID, err := oleutil.GetProperty(result, "DeviceID")
-	if err != nil {
-		return v, fmt.Errorf("Error while getting property DeviceID from Win32_EncryptableVolume info. %s", err.Error())
-	}
-	v.DeviceID = resDeviceID.ToString()
-
 	// Get EncryptionMethod
-	resEncryptionMethod, err := oleutil.GetProperty(result, "ProtectionSEncryptionMethodtatus")
+	resEncryptionMethod, err := oleutil.GetProperty(result, "EncryptionMethod")
 	if err != nil {
 		return v, fmt.Errorf("Error while getting property EncryptionMethod from Win32_EncryptableVolume. %s", err.Error())
 	}
@@ -343,7 +336,7 @@ func Connect(driveLetter string) (Volume, error) {
 		}
 	}
 
-	// IsVolumeInitializedForProtection
+	// Get IsVolumeInitializedForProtection
 	resIsVolumeInitializedForProtection, err := oleutil.GetProperty(result, "IsVolumeInitializedForProtection")
 	if err != nil {
 		return v, fmt.Errorf("Error while getting property IsVolumeInitializedForProtection from Win32_EncryptableVolume. %s", err.Error())
