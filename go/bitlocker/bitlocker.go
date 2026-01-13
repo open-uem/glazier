@@ -717,18 +717,18 @@ func (v *Volume) GetProperties() error {
 		}
 	}
 
-	// // Get VolumeType
-	// resVolumeType, err := oleutil.GetProperty(v.handle, "VolumeType")
-	// if err != nil {
-	// 	return fmt.Errorf("Error while getting property VolumeType from Win32_EncryptableVolume. %s", err.Error())
-	// }
-	// if resVolumeType.Value() != nil {
-	// 	if res, ok := resVolumeType.Value().(uint32); ok {
-	// 		v.VolumeType = res
-	// 	} else {
-	// 		return fmt.Errorf("Error while setting VolumeType property to uint32. Got type %s", reflect.TypeOf(resVolumeType.Value()).Name())
-	// 	}
-	// }
+	// Get VolumeType
+	resVolumeType, err := oleutil.GetProperty(v.handle, "VolumeType")
+	if err != nil {
+		return fmt.Errorf("Error while getting property VolumeType from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resVolumeType.Value() != nil {
+		if res, ok := resVolumeType.Value().(int32); ok {
+			v.VolumeType = uint32(res)
+		} else {
+			return fmt.Errorf("Error while setting VolumeType property to int32. Got type %s", reflect.TypeOf(resVolumeType.Value()).Name())
+		}
+	}
 
 	return nil
 }
