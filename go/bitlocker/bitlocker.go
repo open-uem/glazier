@@ -665,7 +665,7 @@ func (v *Volume) DisableAutoUnlock() error {
 
 func (v *Volume) GetProperties() error {
 	// Get ConversionStatus
-	resConversionStatus, err := oleutil.GetProperty(v.handle, "ProtectionConversionStatusStatus")
+	resConversionStatus, err := oleutil.GetProperty(v.handle, "ConversionStatus")
 	if err != nil {
 		return fmt.Errorf("Error while getting property ConversionStatus from Win32_EncryptableVolume. %s", err.Error())
 	}
@@ -685,7 +685,7 @@ func (v *Volume) GetProperties() error {
 	v.DeviceID = resDeviceID.ToString()
 
 	// Get EncryptionMethod
-	resEncryptionMethod, err := oleutil.GetProperty(v.handle, "ProtectionSEncryptionMethodtatus")
+	resEncryptionMethod, err := oleutil.GetProperty(v.handle, "EncryptionMethod")
 	if err != nil {
 		return fmt.Errorf("Error while getting property EncryptionMethod from Win32_EncryptableVolume. %s", err.Error())
 	}
