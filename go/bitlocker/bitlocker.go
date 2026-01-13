@@ -248,10 +248,17 @@ func disableAutoUnlockErrHandler(val int32) error {
 
 // A Volume tracks an open encryptable volume.
 type Volume struct {
-	letter  string
-	handle  *ole.IDispatch
-	wmiIntf *ole.IDispatch
-	wmiSvc  *ole.IDispatch
+	ConversionStatus                 string
+	DeviceID                         string
+	DriveLetter                      string
+	EncryptionMethod                 string
+	IsVolumeInitializedForProtection bool
+	PersistentVolumeID               string
+	ProtectionStatus                 uint32
+	VolumeType                       uint32
+	handle                           *ole.IDispatch
+	wmiIntf                          *ole.IDispatch
+	wmiSvc                           *ole.IDispatch
 }
 
 // Status of the encryption or decryption on the volume
@@ -277,7 +284,7 @@ func (v *Volume) Close() {
 // Example: bitlocker.Connect("c:")
 func Connect(driveLetter string) (Volume, error) {
 	comshim.Add(1)
-	v := Volume{letter: driveLetter}
+	v := Volume{DriveLetter: driveLetter}
 
 	unknown, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
 	if err != nil {
@@ -323,9 +330,9 @@ func Connect(driveLetter string) (Volume, error) {
 func (v *Volume) Encrypt(method EncryptionMethod, flags EncryptionFlag) error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "Encrypt", int32(method), int32(flags))
 	if err != nil {
-		return fmt.Errorf("Encrypt(%s): %w", v.letter, err)
+		return fmt.Errorf("Encrypt(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("Encrypt(%s): %w", v.letter, encryptErrHandler(val))
+		return fmt.Errorf("Encrypt(%s): %w", v.DriveLetter, encryptErrHandler(val))
 	}
 
 	return nil
@@ -339,9 +346,9 @@ func (v *Volume) Encrypt(method EncryptionMethod, flags EncryptionFlag) error {
 func (v *Volume) Decrypt() error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "Decrypt")
 	if err != nil {
-		return fmt.Errorf("Decrypt(%s): %w", v.letter, err)
+		return fmt.Errorf("Decrypt(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("Decrypt(%s): %w", v.letter, decryptErrHandler(val))
+		return fmt.Errorf("Decrypt(%s): %w", v.DriveLetter, decryptErrHandler(val))
 	}
 
 	return nil
@@ -361,9 +368,9 @@ func (v *Volume) ChangePassphrase(volumeKeyProtectorID string, newPassphrase str
 
 	resultRaw, err := oleutil.CallMethod(v.handle, "ChangePassphrase", string(volumeKeyProtectorID), string(newPassphrase), &newVolumeKeyProtectorID)
 	if err != nil {
-		return "", fmt.Errorf("ChangePassphrase(%s): %w", v.letter, err)
+		return "", fmt.Errorf("ChangePassphrase(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return "", fmt.Errorf("ChangePassphrase(%s): %w", v.letter, changePassphraseErrHandler(val))
+		return "", fmt.Errorf("ChangePassphrase(%s): %w", v.DriveLetter, changePassphraseErrHandler(val))
 	}
 
 	return newVolumeKeyProtectorID.ToString(), nil
@@ -405,9 +412,9 @@ const (
 func (v *Volume) Prepare(volType DiscoveryVolumeType, encType ForceEncryptionType) error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "PrepareVolume", string(volType), int32(encType))
 	if err != nil {
-		return fmt.Errorf("PrepareVolume(%s): %w", v.letter, err)
+		return fmt.Errorf("PrepareVolume(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("PrepareVolume(%s): %w", v.letter, encryptErrHandler(val))
+		return fmt.Errorf("PrepareVolume(%s): %w", v.DriveLetter, encryptErrHandler(val))
 	}
 	return nil
 }
@@ -430,9 +437,9 @@ func (v *Volume) ProtectWithNumericalPassword(password string) error {
 		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithNumericalPassword", nil, nil, &volumeKeyProtectorID)
 	}
 	if err != nil {
-		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.letter, err)
+		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.letter, encryptErrHandler(val))
+		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, encryptErrHandler(val))
 	}
 
 	return nil
@@ -446,9 +453,9 @@ func (v *Volume) ProtectWithPassphrase(passphrase string) (string, error) {
 	ole.VariantInit(&volumeKeyProtectorID)
 	resultRaw, err := oleutil.CallMethod(v.handle, "ProtectKeyWithPassphrase", nil, passphrase, &volumeKeyProtectorID)
 	if err != nil {
-		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.letter, err)
+		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.letter, encryptErrHandler(val))
+		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.DriveLetter, encryptErrHandler(val))
 	}
 
 	return volumeKeyProtectorID.ToString(), nil
@@ -468,9 +475,9 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithTPM", nil, *platformValidationProfile, &volumeKeyProtectorID)
 	}
 	if err != nil {
-		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.letter, err)
+		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.letter, encryptErrHandler(val))
+		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, encryptErrHandler(val))
 	}
 
 	return nil
@@ -501,9 +508,9 @@ func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []ui
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.letter, err)
+		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.letter, protectKeyWithExternalKeyErrHandler(val))
+		return "", fmt.Errorf("ProtectKeyWithExternalKey(%s): %w", v.DriveLetter, protectKeyWithExternalKeyErrHandler(val))
 	}
 
 	return volumeKeyProtectorID.ToString(), nil
@@ -519,9 +526,9 @@ func (v *Volume) ProtectKeyWithExternalKey(friendlyName string, externalKey []ui
 func (v *Volume) EnableKeyProtectors() error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "EnableKeyProtectors")
 	if err != nil {
-		return fmt.Errorf("EnableKeyProtectors(%s): %w", v.letter, err)
+		return fmt.Errorf("EnableKeyProtectors(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("EnableKeyProtectors(%s): %w", v.letter, enableKeyProtectorsErrHandler(val))
+		return fmt.Errorf("EnableKeyProtectors(%s): %w", v.DriveLetter, enableKeyProtectorsErrHandler(val))
 	}
 
 	return nil
@@ -545,9 +552,9 @@ func (v *Volume) DisableKeyProtectors(disableCount uint32) error {
 		resultRaw, err = oleutil.CallMethod(v.handle, "DisableKeyProtectors", nil)
 	}
 	if err != nil {
-		return fmt.Errorf("DisableKeyProtectors(%s): %w", v.letter, err)
+		return fmt.Errorf("DisableKeyProtectors(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("DisableKeyProtectors(%s): %w", v.letter, disableKeyProtectorsErrHandler(val))
+		return fmt.Errorf("DisableKeyProtectors(%s): %w", v.DriveLetter, disableKeyProtectorsErrHandler(val))
 	}
 
 	return nil
@@ -583,9 +590,9 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, err)
+		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.letter, getConversionStatusErrHandler(val))
+		return nil, fmt.Errorf("GetConversionStatus(%s): %w", v.DriveLetter, getConversionStatusErrHandler(val))
 	}
 
 	cs := ConversionStatus{
@@ -607,9 +614,9 @@ func (v *Volume) GetConversionStatus(precisionFactor uint32) (*ConversionStatus,
 func (v *Volume) EnableAutoUnlock(volumeKeyProtectorID string) error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "EnableAutoUnlock", volumeKeyProtectorID)
 	if err != nil {
-		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.letter, err)
+		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.letter, enableAutoUnlockErrHandler(val))
+		return fmt.Errorf("EnableAutoUnlock(%s): %w", v.DriveLetter, enableAutoUnlockErrHandler(val))
 	}
 
 	return nil
@@ -624,9 +631,9 @@ func (v *Volume) EnableAutoUnlock(volumeKeyProtectorID string) error {
 func (v *Volume) DisableAutoUnlock() error {
 	resultRaw, err := oleutil.CallMethod(v.handle, "DisableAutoUnlock")
 	if err != nil {
-		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.letter, err)
+		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.letter, disableAutoUnlockErrHandler(val))
+		return fmt.Errorf("DisableAutoUnlock(%s): %w", v.DriveLetter, disableAutoUnlockErrHandler(val))
 	}
 
 	return nil
