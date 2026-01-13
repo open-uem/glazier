@@ -323,19 +323,6 @@ func Connect(driveLetter string) (Volume, error) {
 	result := raw.ToIDispatch()
 	defer result.Release()
 
-	// Get VolumeType
-	resVolumeType, err := oleutil.GetProperty(result, "VolumeType")
-	if err != nil {
-		return v, fmt.Errorf("Error while getting property VolumeType from Win32_EncryptableVolume. %s", err.Error())
-	}
-	if resVolumeType.Value() != nil {
-		if res, ok := resVolumeType.Value().(uint32); ok {
-			v.VolumeType = res
-		} else {
-			return v, fmt.Errorf("Error while setting VolumeType property to uint32. Got type %s", reflect.TypeOf(resVolumeType.Value()).Name())
-		}
-	}
-
 	itemRaw, err := oleutil.CallMethod(result, "ItemIndex", 0)
 	if err != nil {
 		v.Close()
@@ -727,6 +714,19 @@ func (v *Volume) GetProperties() error {
 			v.ProtectionStatus = res
 		} else {
 			return fmt.Errorf("Error while setting ProtectionStatus property to uint32. Got type %s", reflect.TypeOf(resProtectionStatus.Value()).Name())
+		}
+	}
+
+	// Get VolumeType
+	resVolumeType, err := oleutil.GetProperty(v.handle, "VolumeType")
+	if err != nil {
+		return fmt.Errorf("Error while getting property VolumeType from Win32_EncryptableVolume. %s", err.Error())
+	}
+	if resVolumeType.Value() != nil {
+		if res, ok := resVolumeType.Value().(uint32); ok {
+			v.VolumeType = res
+		} else {
+			return fmt.Errorf("Error while setting VolumeType property to uint32. Got type %s", reflect.TypeOf(resVolumeType.Value()).Name())
 		}
 	}
 
