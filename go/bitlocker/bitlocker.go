@@ -125,6 +125,8 @@ const (
 	FVE_E_FIPS_PREVENTS_PASSPHRASE         int32 = -2144272276
 	FVE_E_KEY_PROTECTOR_NOT_SUPPORTED      int32 = -2144272279
 	FVE_E_OS_VOLUME_PASSPHRASE_NOT_ALLOWED int32 = -2144272275
+	TBS_E_SERVICE_NOT_RUNNING              int32 = -2144845816
+	FVE_E_FOREIGN_VOLUME                   int32 = -2144272349
 )
 
 func encryptErrHandler(val int32) error {
@@ -226,6 +228,19 @@ func enableAutoUnlockErrHandler(val int32) error {
 	}
 }
 
+func protectKeyWithNumericalPasswordErrHandler(val int32) error {
+	switch val {
+	case E_INVALIDARG:
+		return fmt.Errorf("the NumericalPassword parameter does not have a valid format")
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	case FVE_E_INVALID_PASSWORD_FORMAT:
+		return fmt.Errorf("the NumericalPassword parameter does not have a valid format")
+	default:
+		return fmt.Errorf("error code returned when protecting with numerical password: %d", val)
+	}
+}
+
 func protectKeyWithExternalKeyErrHandler(val int32) error {
 	switch val {
 	case E_INVALIDARG:
@@ -246,23 +261,40 @@ func protectKeyWithPassphraseErrHandler(val int32) error {
 	case FVE_E_POLICY_PASSPHRASE_NOT_ALLOWED:
 		return fmt.Errorf("Group policy does not permit the creation of a passphrase")
 	case FVE_E_FIPS_PREVENTS_PASSPHRASE:
-		return fmt.Errorf("The group policy setting that requires FIPS compliance prevented the passphrase from being generated or used")
+		return fmt.Errorf("the group policy setting that requires FIPS compliance prevented the passphrase from being generated or used")
 	case FVE_E_POLICY_INVALID_PASSPHRASE_LENGTH:
-		return fmt.Errorf("The passphrase provided does not meet the minimum or maximum length requirements")
+		return fmt.Errorf("the passphrase provided does not meet the minimum or maximum length requirements")
 	case FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE:
-		return fmt.Errorf("The passphrase does not meet the complexity requirements set by the administrator in group policy")
+		return fmt.Errorf("the passphrase does not meet the complexity requirements set by the administrator in group policy")
 	case FVE_E_LOCKED_VOLUME:
-		return fmt.Errorf("The volume is already locked by BitLocker Drive Encryption. You must unlock the drive from Control Panel")
+		return fmt.Errorf("the volume is already locked by BitLocker Drive Encryption. You must unlock the drive from Control Panel")
 	case FVE_E_OVERLAPPED_UPDATE:
-		return fmt.Errorf("The control block for the encrypted volume was updated by another thread")
+		return fmt.Errorf("the control block for the encrypted volume was updated by another thread")
 	case FVE_E_KEY_PROTECTOR_NOT_SUPPORTED:
-		return fmt.Errorf("The key protector is not supported by the version of BitLocker Drive Encryption currently on the volume")
+		return fmt.Errorf("the key protector is not supported by the version of BitLocker Drive Encryption currently on the volume")
 	case FVE_E_OS_VOLUME_PASSPHRASE_NOT_ALLOWED:
-		return fmt.Errorf("The passphrase cannot be added to the operating system volume")
+		return fmt.Errorf("the passphrase cannot be added to the operating system volume")
 	case FVE_E_PROTECTOR_EXISTS:
-		return fmt.Errorf("The provided key protector already exists on this volume")
+		return fmt.Errorf("the provided key protector already exists on this volume")
 	default:
 		return fmt.Errorf("error code returned when protecting with passphrase: %d", val)
+	}
+}
+
+func protectKeyWithTPMErrHandler(val int32) error {
+	switch val {
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	case TBS_E_SERVICE_NOT_RUNNING:
+		return fmt.Errorf("no compatible TPM is found on this computer")
+	case FVE_E_FOREIGN_VOLUME:
+		return fmt.Errorf("the TPM cannot secure the volume's encryption key because the volume does not contain the currently running operating system")
+	case E_INVALIDARG:
+		return fmt.Errorf("the PlatformValidationProfile parameter is provided but its values are not within the known range, or it does not match the Group Policy setting currently in effect")
+	case FVE_E_PROTECTOR_EXISTS:
+		return fmt.Errorf("a key protector of this type already exists")
+	default:
+		return fmt.Errorf("error code returned when protecting with TPM: %d", val)
 	}
 }
 
@@ -481,7 +513,7 @@ func (v *Volume) ProtectWithNumericalPassword(password string) error {
 	if err != nil {
 		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, encryptErrHandler(val))
+		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, protectKeyWithNumericalPasswordErrHandler(val))
 	}
 
 	return nil
@@ -519,7 +551,7 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 	if err != nil {
 		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, encryptErrHandler(val))
+		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, protectKeyWithTPMErrHandler(val))
 	}
 
 	return nil
