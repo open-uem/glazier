@@ -121,6 +121,10 @@ const (
 	FVE_E_VOLUME_BOUND_ALREADY             int32 = -2144272353
 	E_INVALIDARG                           int32 = -2147024809
 	FVE_E_VOLUME_NOT_BOUND                 int32 = -2144272361
+	FVE_E_NOT_ALLOWED_IN_SAFE_MODE         int32 = -2144272320
+	FVE_E_FIPS_PREVENTS_PASSPHRASE         int32 = -2144272276
+	FVE_E_KEY_PROTECTOR_NOT_SUPPORTED      int32 = -2144272279
+	FVE_E_OS_VOLUME_PASSPHRASE_NOT_ALLOWED int32 = -2144272275
 )
 
 func encryptErrHandler(val int32) error {
@@ -232,6 +236,33 @@ func protectKeyWithExternalKeyErrHandler(val int32) error {
 		return fmt.Errorf("the volume is locked")
 	default:
 		return fmt.Errorf("error code returned when protecting with external key: %d", val)
+	}
+}
+
+func protectKeyWithPassphraseErrHandler(val int32) error {
+	switch val {
+	case FVE_E_NOT_ALLOWED_IN_SAFE_MODE:
+		return fmt.Errorf("BitLocker Drive Encryption can only be used for recovery purposes when used in Safe Mode")
+	case FVE_E_POLICY_PASSPHRASE_NOT_ALLOWED:
+		return fmt.Errorf("Group policy does not permit the creation of a passphrase")
+	case FVE_E_FIPS_PREVENTS_PASSPHRASE:
+		return fmt.Errorf("The group policy setting that requires FIPS compliance prevented the passphrase from being generated or used")
+	case FVE_E_POLICY_INVALID_PASSPHRASE_LENGTH:
+		return fmt.Errorf("The passphrase provided does not meet the minimum or maximum length requirements")
+	case FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE:
+		return fmt.Errorf("The passphrase does not meet the complexity requirements set by the administrator in group policy")
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("The volume is already locked by BitLocker Drive Encryption. You must unlock the drive from Control Panel")
+	case FVE_E_OVERLAPPED_UPDATE:
+		return fmt.Errorf("The control block for the encrypted volume was updated by another thread")
+	case FVE_E_KEY_PROTECTOR_NOT_SUPPORTED:
+		return fmt.Errorf("The key protector is not supported by the version of BitLocker Drive Encryption currently on the volume")
+	case FVE_E_OS_VOLUME_PASSPHRASE_NOT_ALLOWED:
+		return fmt.Errorf("The passphrase cannot be added to the operating system volume")
+	case FVE_E_PROTECTOR_EXISTS:
+		return fmt.Errorf("The provided key protector already exists on this volume")
+	default:
+		return fmt.Errorf("error code returned when protecting with passphrase: %d", val)
 	}
 }
 
@@ -466,7 +497,7 @@ func (v *Volume) ProtectWithPassphrase(passphrase string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.DriveLetter, encryptErrHandler(val))
+		return "", fmt.Errorf("ProtectWithPassphrase(%s): %w", v.DriveLetter, protectKeyWithPassphraseErrHandler(val))
 	}
 
 	return volumeKeyProtectorID.ToString(), nil
