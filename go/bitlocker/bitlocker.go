@@ -30,6 +30,7 @@ package bitlocker
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/go-ole/go-ole"
@@ -742,6 +743,32 @@ func (v *Volume) IsAutoUnlockEnabled() (bool, string, error) {
 	}
 
 	return isAutoUnlockEnabled.Value().(bool), volumeKeyProtectorID.Value().(string), nil
+}
+
+// GetKeyProtectors lists the protectors used to secure the volume's encryption key.
+// If a protector type is provided, then only volume key protectors of the specified type are returned
+//
+// Example: vol.GetKeyProtectors(0)
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) GetKeyProtectors(keyProtectorType uint32) (string, error) {
+	var volumeKeyProtectorIDs ole.VARIANT
+	ole.VariantInit(&volumeKeyProtectorIDs)
+
+	resultRaw, err := oleutil.CallMethod(
+		v.handle, "GetKeyProtectors",
+		keyProtectorType,
+		&volumeKeyProtectorIDs,
+	)
+
+	if err != nil {
+		return "", fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return "", fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, errHandler(val))
+	}
+
+	log.Println("Protector IDs: ", volumeKeyProtectorIDs)
+	return volumeKeyProtectorIDs.Value().(string), nil
 }
 
 func (v *Volume) GetProperties() error {
