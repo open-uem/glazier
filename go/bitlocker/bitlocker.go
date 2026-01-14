@@ -327,6 +327,21 @@ func disableAutoUnlockErrHandler(val int32) error {
 	}
 }
 
+func deleteKeyProtectorErrHandler(val int32) error {
+	switch val {
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	case FVE_E_KEY_REQUIRED:
+		return fmt.Errorf("The last key protector for a partially or fully encrypted volume cannot be removed if key protectors are enabled")
+	case FVE_E_AUTOUNLOCK_ENABLED:
+		return fmt.Errorf("This key protector cannot be deleted because it is being used to automatically unlock the volume. Use DisableAutoUnlock to disable automatic unlocking before deleting this key protector")
+	default:
+		return fmt.Errorf("error code returned during decryption: %d", val)
+	}
+}
+
 // A Volume tracks an open encryptable volume.
 type Volume struct {
 	ConversionStatus                 uint32
@@ -804,6 +819,29 @@ func (v *Volume) GetKeyProtectorType(volumeKeyProtectorID string) (int32, error)
 	}
 
 	return keyProtectorType.Value().(int32), nil
+}
+
+// DeleteKeyProtector deletes a given key protector for the volume
+//
+// Example: vol.DeleteKeyProtector("{E5CBFAAC-C757-4683-9A07-2AFF00EF0123}"")
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) DeleteKeyProtector(volumeKeyProtectorID string) error {
+	var keyProtectorType ole.VARIANT
+	ole.VariantInit(&keyProtectorType)
+
+	resultRaw, err := oleutil.CallMethod(
+		v.handle, "DeleteKeyProtector",
+		volumeKeyProtectorID,
+	)
+
+	if err != nil {
+		return fmt.Errorf("DeleteKeyProtector(%s): %w", v.DriveLetter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("DeleteKeyProtector(%s): %w", v.DriveLetter, deleteKeyProtectorErrHandler(val))
+	}
+
+	return nil
 }
 
 func (v *Volume) GetProperties() error {
