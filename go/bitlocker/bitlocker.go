@@ -127,6 +127,7 @@ const (
 	FVE_E_OS_VOLUME_PASSPHRASE_NOT_ALLOWED int32 = -2144272275
 	TBS_E_SERVICE_NOT_RUNNING              int32 = -2144845816
 	FVE_E_FOREIGN_VOLUME                   int32 = -2144272349
+	FVE_E_CANNOT_ENCRYPT_NO_KEY            int32 = -2144272338
 )
 
 func errHandler(val int32) error {
@@ -154,6 +155,8 @@ func errHandler(val int32) error {
 		return fmt.Errorf("the method cannot be run for the currently running operating system volume")
 	case FVE_E_PROTECTOR_EXISTS:
 		return fmt.Errorf("key protector cannot be added; only one key protector of this type is allowed for this drive")
+	case FVE_E_CANNOT_ENCRYPT_NO_KEY:
+		return fmt.Errorf("BitLocker Drive Encryption cannot encrypt the specified drive because an encryption key is not available. Add a key protector to encrypt this drive")
 	default:
 		return fmt.Errorf("error code returned during encryption: %d", val)
 	}
