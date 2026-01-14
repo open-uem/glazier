@@ -779,25 +779,25 @@ func (v *Volume) GetKeyProtectors(keyProtectorType int32) ([]string, error) {
 	return values, nil
 }
 
-// GetKeyProtectors indicates the type of a given key protector
+// GetKeyProtectorType indicates the type of a given key protector
 //
-// Example: vol.GetKeyProtector("{E5CBFAAC-C757-4683-9A07-2AFF00EF0123}"")
+// Example: vol.GetKeyProtectorType("{E5CBFAAC-C757-4683-9A07-2AFF00EF0123}"")
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
-func (v *Volume) GetKeyProtector(volumeKeyProtectorID string) (int32, error) {
+func (v *Volume) GetKeyProtectorType(volumeKeyProtectorID string) (int32, error) {
 	var keyProtectorType ole.VARIANT
 	ole.VariantInit(&keyProtectorType)
 
 	resultRaw, err := oleutil.CallMethod(
-		v.handle, "GetKeyProtectors",
+		v.handle, "GetKeyProtectorType",
 		volumeKeyProtectorID,
 		&keyProtectorType,
 	)
 
 	if err != nil {
-		return 0, fmt.Errorf("GetKeyProtector(%s): %w", v.DriveLetter, err)
+		return 0, fmt.Errorf("GetKeyProtectorType(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return 0, fmt.Errorf("GetKeyProtector(%s): %w", v.DriveLetter, errHandler(val))
+		return 0, fmt.Errorf("GetKeyProtectorType(%s): %w", v.DriveLetter, errHandler(val))
 	}
 
 	return keyProtectorType.Value().(int32), nil
