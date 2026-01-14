@@ -30,7 +30,6 @@ package bitlocker
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/go-ole/go-ole"
@@ -767,7 +766,6 @@ func (v *Volume) GetKeyProtectors(keyProtectorType uint32) (string, error) {
 		return "", fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, errHandler(val))
 	}
 
-	log.Println("Protector IDs: ", volumeKeyProtectorIDs)
 	return volumeKeyProtectorIDs.Value().(string), nil
 }
 
