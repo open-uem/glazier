@@ -750,7 +750,7 @@ func (v *Volume) IsAutoUnlockEnabled() (bool, string, error) {
 // Example: vol.GetKeyProtectors(0)
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
-func (v *Volume) GetKeyProtectors(keyProtectorType uint32) ([]string, error) {
+func (v *Volume) GetKeyProtectors(keyProtectorType int32) ([]string, error) {
 	values := []string{}
 
 	var volumeKeyProtectorIDs ole.VARIANT
@@ -758,7 +758,7 @@ func (v *Volume) GetKeyProtectors(keyProtectorType uint32) ([]string, error) {
 
 	resultRaw, err := oleutil.CallMethod(
 		v.handle, "GetKeyProtectors",
-		0,
+		keyProtectorType,
 		&volumeKeyProtectorIDs,
 	)
 
