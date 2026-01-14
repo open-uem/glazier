@@ -129,7 +129,7 @@ const (
 	FVE_E_FOREIGN_VOLUME                   int32 = -2144272349
 )
 
-func encryptErrHandler(val int32) error {
+func errHandler(val int32) error {
 	switch val {
 	case ERROR_IO_DEVICE:
 		return fmt.Errorf("an I/O error has occurred during encryption; the device may need to be reset")
@@ -148,6 +148,10 @@ func encryptErrHandler(val int32) error {
 	case FVE_E_BOOTABLE_CDDVD:
 		return fmt.Errorf("BitLocker Drive Encryption detected bootable media (CD or DVD) in the computer. " +
 			"Remove the media and restart the computer before configuring BitLocker.")
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	case FVE_E_NOT_DATA_VOLUME:
+		return fmt.Errorf("the method cannot be run for the currently running operating system volume")
 	case FVE_E_PROTECTOR_EXISTS:
 		return fmt.Errorf("key protector cannot be added; only one key protector of this type is allowed for this drive")
 	default:
@@ -406,7 +410,7 @@ func (v *Volume) Encrypt(method EncryptionMethod, flags EncryptionFlag) error {
 	if err != nil {
 		return fmt.Errorf("Encrypt(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("Encrypt(%s): %w", v.DriveLetter, encryptErrHandler(val))
+		return fmt.Errorf("Encrypt(%s): %w", v.DriveLetter, errHandler(val))
 	}
 
 	return nil
@@ -488,7 +492,7 @@ func (v *Volume) Prepare(volType DiscoveryVolumeType, encType ForceEncryptionTyp
 	if err != nil {
 		return fmt.Errorf("PrepareVolume(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("PrepareVolume(%s): %w", v.DriveLetter, encryptErrHandler(val))
+		return fmt.Errorf("PrepareVolume(%s): %w", v.DriveLetter, errHandler(val))
 	}
 	return nil
 }
@@ -711,6 +715,33 @@ func (v *Volume) DisableAutoUnlock() error {
 	}
 
 	return nil
+}
+
+// IsAutoUnlockEnabled indicates whether the volume is automatically unlocked when it is mounted
+// (for example, when removable memory devices are connected to the computer)
+//
+// Example: vol.IsAutoUnlockEnabled()
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) IsAutoUnlockEnabled() (bool, string, error) {
+	var isAutoUnlockEnabled ole.VARIANT
+	ole.VariantInit(&isAutoUnlockEnabled)
+	var volumeKeyProtectorID ole.VARIANT
+	ole.VariantInit(&volumeKeyProtectorID)
+
+	resultRaw, err := oleutil.CallMethod(
+		v.handle, "IsAutoUnlockEnabled",
+		&isAutoUnlockEnabled,
+		&volumeKeyProtectorID,
+	)
+
+	if err != nil {
+		return false, "", fmt.Errorf("IsAutoUnlockEnabled(%s): %w", v.DriveLetter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return false, "", fmt.Errorf("IsAutoUnlockEnabled(%s): %w", v.DriveLetter, errHandler(val))
+	}
+
+	return isAutoUnlockEnabled.Value().(bool), volumeKeyProtectorID.Value().(string), nil
 }
 
 func (v *Volume) GetProperties() error {
