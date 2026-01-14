@@ -795,9 +795,9 @@ func (v *Volume) GetKeyProtector(volumeKeyProtectorID string) (int32, error) {
 	)
 
 	if err != nil {
-		return 0, fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, err)
+		return 0, fmt.Errorf("GetKeyProtector(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return 0, fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, errHandler(val))
+		return 0, fmt.Errorf("GetKeyProtector(%s): %w", v.DriveLetter, errHandler(val))
 	}
 
 	return keyProtectorType.Value().(int32), nil
