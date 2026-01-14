@@ -750,8 +750,10 @@ func (v *Volume) IsAutoUnlockEnabled() (bool, string, error) {
 // Example: vol.GetKeyProtectors(0)
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
-func (v *Volume) GetKeyProtectors(keyProtectorType uint32) (string, error) {
+func (v *Volume) GetKeyProtectors(keyProtectorType uint32) ([]string, error) {
 	var volumeKeyProtectorIDs ole.VARIANT
+	values := []string{}
+
 	ole.VariantInit(&volumeKeyProtectorIDs)
 
 	resultRaw, err := oleutil.CallMethod(
@@ -761,12 +763,20 @@ func (v *Volume) GetKeyProtectors(keyProtectorType uint32) (string, error) {
 	)
 
 	if err != nil {
-		return "", fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, err)
+		return nil, fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return "", fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, errHandler(val))
+		return nil, fmt.Errorf("GetKeyProtectors(%s): %w", v.DriveLetter, errHandler(val))
 	}
 
-	return volumeKeyProtectorIDs.Value().(string), nil
+	keyProtectorValues := volumeKeyProtectorIDs.ToArray().ToValueArray()
+	for _, keyIDItemRaw := range keyProtectorValues {
+		keyIDItem, ok := keyIDItemRaw.(string)
+		if !ok {
+			return nil, fmt.Errorf("KeyProtectorID wasn't a string...")
+		}
+		values = append(values, keyIDItem)
+	}
+	return values, nil
 }
 
 func (v *Volume) GetProperties() error {
