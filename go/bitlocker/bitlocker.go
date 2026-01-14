@@ -338,7 +338,7 @@ func deleteKeyProtectorErrHandler(val int32) error {
 	case FVE_E_AUTOUNLOCK_ENABLED:
 		return fmt.Errorf("This key protector cannot be deleted because it is being used to automatically unlock the volume. Use DisableAutoUnlock to disable automatic unlocking before deleting this key protector")
 	default:
-		return fmt.Errorf("error code returned during decryption: %d", val)
+		return fmt.Errorf("error code returned when deleting the key protector: %d", val)
 	}
 }
 
