@@ -872,9 +872,6 @@ func (v *Volume) DeleteKeyProtector(volumeKeyProtectorID string) error {
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
 func (v *Volume) UnlockWithPassphrase(passphrase string) error {
-	var keyProtectorType ole.VARIANT
-	ole.VariantInit(&keyProtectorType)
-
 	resultRaw, err := oleutil.CallMethod(
 		v.handle, "UnlockWithPassphrase",
 		passphrase,
@@ -887,6 +884,27 @@ func (v *Volume) UnlockWithPassphrase(passphrase string) error {
 	}
 
 	return nil
+}
+
+// GetLockStatus indicates whether the contents of the volume are accessible from Windows.
+//
+// Example: vol.GetLockStatus()
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) GetLockStatus() (int32, error) {
+	var lockStatus ole.VARIANT
+	ole.VariantInit(&lockStatus)
+
+	_, err := oleutil.CallMethod(
+		v.handle, "GetLockStatus",
+		&lockStatus,
+	)
+
+	if err != nil {
+		return 0, fmt.Errorf("GetLockStatus(%s): %w", v.DriveLetter, "an error was found getting lock status")
+	}
+
+	return lockStatus.Value().(int32), nil
 }
 
 func (v *Volume) GetProperties() error {
