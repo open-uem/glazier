@@ -128,6 +128,8 @@ const (
 	TBS_E_SERVICE_NOT_RUNNING              int32 = -2144845816
 	FVE_E_FOREIGN_VOLUME                   int32 = -2144272349
 	FVE_E_CANNOT_ENCRYPT_NO_KEY            int32 = -2144272338
+	FVE_E_FAILED_AUTHENTICATION            int32 = -2144272345
+	FVE_E_PROTECTOR_NOT_FOUND              int32 = -2144272333
 )
 
 func errHandler(val int32) error {
@@ -339,6 +341,25 @@ func deleteKeyProtectorErrHandler(val int32) error {
 		return fmt.Errorf("This key protector cannot be deleted because it is being used to automatically unlock the volume. Use DisableAutoUnlock to disable automatic unlocking before deleting this key protector")
 	default:
 		return fmt.Errorf("error code returned when deleting the key protector: %d", val)
+	}
+}
+
+func unlockWithPassphraseErrHandler(val int32) error {
+	switch val {
+	case FVE_E_NOT_ACTIVATED:
+		return fmt.Errorf("BitLocker is not enabled on the volume. Add a key protector to enable BitLocker")
+	case FVE_E_FIPS_PREVENTS_PASSPHRASE:
+		return fmt.Errorf("the group policy setting that requires FIPS compliance prevented the passphrase from being generated or used")
+	case FVE_E_POLICY_INVALID_PASSPHRASE_LENGTH:
+		return fmt.Errorf("the updated passphrase provided does not meet the minimum or maximum length requirements")
+	case FVE_E_POLICY_PASSPHRASE_TOO_SIMPLE:
+		return fmt.Errorf("the updated passphrase does not meet the complexity requirements set by the administrator in group policy")
+	case FVE_E_FAILED_AUTHENTICATION:
+		return fmt.Errorf("The volume cannot be unlocked with the provided information")
+	case FVE_E_PROTECTOR_NOT_FOUND:
+		return fmt.Errorf("The provided key protector does not exist on the volume. You must enter another key protector")
+	default:
+		return fmt.Errorf("error code returned when unlocking with passphrase: %d", val)
 	}
 }
 
@@ -839,6 +860,30 @@ func (v *Volume) DeleteKeyProtector(volumeKeyProtectorID string) error {
 		return fmt.Errorf("DeleteKeyProtector(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return fmt.Errorf("DeleteKeyProtector(%s): %w", v.DriveLetter, deleteKeyProtectorErrHandler(val))
+	}
+
+	return nil
+}
+
+// UnlockWithPassphrase uses the passphrase to obtain the derived key.
+// After the derived key is calculated, the derived key is used to unlock the encrypted volume's master key
+//
+// Example: vol.UnlockWithPassphrase("{E5CBFAAC-C757-4683-9A07-2AFF00EF0123}"")
+//
+// Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/encrypt-win32-encryptablevolume
+func (v *Volume) UnlockWithPassphrase(passphrase string) error {
+	var keyProtectorType ole.VARIANT
+	ole.VariantInit(&keyProtectorType)
+
+	resultRaw, err := oleutil.CallMethod(
+		v.handle, "UnlockWithPassphrase",
+		passphrase,
+	)
+
+	if err != nil {
+		return fmt.Errorf("UnlockWithPassphrase(%s): %w", v.DriveLetter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("UnlockWithPassphrase(%s): %w", v.DriveLetter, unlockWithPassphraseErrHandler(val))
 	}
 
 	return nil
