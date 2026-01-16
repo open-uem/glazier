@@ -130,6 +130,8 @@ const (
 	FVE_E_CANNOT_ENCRYPT_NO_KEY            int32 = -2144272338
 	FVE_E_FAILED_AUTHENTICATION            int32 = -2144272345
 	FVE_E_PROTECTOR_NOT_FOUND              int32 = -2144272333
+	FVE_E_INVALID_PIN_CHARS                int32 = -2144272230
+	FVE_E_POLICY_INVALID_PIN_LENGTH        int32 = -2144272280
 )
 
 func errHandler(val int32) error {
@@ -302,6 +304,30 @@ func protectKeyWithTPMErrHandler(val int32) error {
 		return fmt.Errorf("the PlatformValidationProfile parameter is provided but its values are not within the known range, or it does not match the Group Policy setting currently in effect")
 	case FVE_E_PROTECTOR_EXISTS:
 		return fmt.Errorf("a key protector of this type already exists")
+	default:
+		return fmt.Errorf("error code returned when protecting with TPM: %d", val)
+	}
+}
+
+func protectKeyWithTPMAndPINErrHandler(val int32) error {
+	switch val {
+	case E_INVALIDARG:
+		return fmt.Errorf("the PlatformValidationProfile parameter is provided but its values are not within the known range, or it does not match the Group Policy setting currently in effect")
+	case FVE_E_BOOTABLE_CDDVD:
+		return fmt.Errorf("BitLocker Drive Encryption detected bootable media (CD or DVD) in the computer. " +
+			"Remove the media and restart the computer before configuring BitLocker.")
+	case FVE_E_FOREIGN_VOLUME:
+		return fmt.Errorf("the TPM cannot secure the volume's encryption key because the volume does not contain the currently running operating system")
+	case FVE_E_INVALID_PIN_CHARS:
+		return fmt.Errorf("the NewPIN parameter contains characters that are not valid. When the 'Allow enhanced PINs for startup' Group Policy is disabled, only numbers are supported")
+	case FVE_E_LOCKED_VOLUME:
+		return fmt.Errorf("the volume is locked")
+	case FVE_E_POLICY_INVALID_PIN_LENGTH:
+		return fmt.Errorf("the NewPIN parameter supplied is either longer than 20 characters, shorter than 6 characters, or shorter than the minimum length specified by Group Policy")
+	case FVE_E_PROTECTOR_EXISTS:
+		return fmt.Errorf("a key protector of this type already exists")
+	case TBS_E_SERVICE_NOT_RUNNING:
+		return fmt.Errorf("no compatible TPM is found on this computer")
 	default:
 		return fmt.Errorf("error code returned when protecting with TPM: %d", val)
 	}
@@ -595,6 +621,25 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) (string, err
 		return "", fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return "", fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, protectKeyWithTPMErrHandler(val))
+	}
+
+	return volumeKeyProtectorID.ToString(), nil
+}
+
+func (v *Volume) ProtectKeyWithTPMAndPIN(friendlyName string, platformValidationProfile *[]uint8, pin string) (string, error) {
+	var volumeKeyProtectorID ole.VARIANT
+	ole.VariantInit(&volumeKeyProtectorID)
+	var resultRaw *ole.VARIANT
+	var err error
+	if platformValidationProfile == nil {
+		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithTPMAndPIN", friendlyName, nil, pin, &volumeKeyProtectorID)
+	} else {
+		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithTPMAndPIN", nil, *platformValidationProfile, pin, &volumeKeyProtectorID)
+	}
+	if err != nil {
+		return "", fmt.Errorf("ProtectKeyWithTPMAndPIN(%s): %w", v.DriveLetter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return "", fmt.Errorf("ProtectKeyWithTPMAndPIN(%s): %w", v.DriveLetter, protectKeyWithTPMAndPINErrHandler(val))
 	}
 
 	return volumeKeyProtectorID.ToString(), nil
