@@ -132,6 +132,7 @@ const (
 	FVE_E_PROTECTOR_NOT_FOUND              int32 = -2144272333
 	FVE_E_INVALID_PIN_CHARS                int32 = -2144272230
 	FVE_E_POLICY_INVALID_PIN_LENGTH        int32 = -2144272280
+	FVE_E_POLICY_STARTUP_PIN_NOT_ALLOWED   int32 = -2144272288
 )
 
 func errHandler(val int32) error {
@@ -328,6 +329,8 @@ func protectKeyWithTPMAndPINErrHandler(val int32) error {
 		return fmt.Errorf("a key protector of this type already exists")
 	case TBS_E_SERVICE_NOT_RUNNING:
 		return fmt.Errorf("no compatible TPM is found on this computer")
+	case FVE_E_POLICY_STARTUP_PIN_NOT_ALLOWED:
+		return fmt.Errorf("Group policy settings do not permit the use of a PIN at startup. Please choose a different BitLocker startup option")
 	default:
 		return fmt.Errorf("error code returned when protecting with TPM: %d", val)
 	}
