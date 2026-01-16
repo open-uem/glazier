@@ -543,7 +543,7 @@ func (v *Volume) Prepare(volType DiscoveryVolumeType, encType ForceEncryptionTyp
 // In Powershell this is referred to as a RecoveryPasswordProtector.
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithnumericalpassword-win32-encryptablevolume
-func (v *Volume) ProtectWithNumericalPassword(password string) error {
+func (v *Volume) ProtectWithNumericalPassword(password string) (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
 	ole.VariantInit(&volumeKeyProtectorID)
 	var resultRaw *ole.VARIANT
@@ -554,12 +554,12 @@ func (v *Volume) ProtectWithNumericalPassword(password string) error {
 		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithNumericalPassword", nil, nil, &volumeKeyProtectorID)
 	}
 	if err != nil {
-		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, err)
+		return "", fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, protectKeyWithNumericalPasswordErrHandler(val))
+		return "", fmt.Errorf("ProtectKeyWithNumericalPassword(%s): %w", v.DriveLetter, protectKeyWithNumericalPasswordErrHandler(val))
 	}
 
-	return nil
+	return volumeKeyProtectorID.ToString(), nil
 }
 
 // ProtectWithPassphrase adds a passphrase key protector.
@@ -581,7 +581,7 @@ func (v *Volume) ProtectWithPassphrase(passphrase string) (string, error) {
 // ProtectWithTPM adds the TPM key protector.
 //
 // Ref: https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpm-win32-encryptablevolume
-func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
+func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
 	ole.VariantInit(&volumeKeyProtectorID)
 	var resultRaw *ole.VARIANT
@@ -592,12 +592,12 @@ func (v *Volume) ProtectWithTPM(platformValidationProfile *[]uint8) error {
 		resultRaw, err = oleutil.CallMethod(v.handle, "ProtectKeyWithTPM", nil, *platformValidationProfile, &volumeKeyProtectorID)
 	}
 	if err != nil {
-		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, err)
+		return "", fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, protectKeyWithTPMErrHandler(val))
+		return "", fmt.Errorf("ProtectKeyWithTPM(%s): %w", v.DriveLetter, protectKeyWithTPMErrHandler(val))
 	}
 
-	return nil
+	return volumeKeyProtectorID.ToString(), nil
 }
 
 // ProtectKeyWithExternalKey secures the volume's encryption key with a 256-bit external key.
@@ -901,7 +901,7 @@ func (v *Volume) GetLockStatus() (int32, error) {
 	)
 
 	if err != nil {
-		return 0, fmt.Errorf("GetLockStatus(%s): %w", v.DriveLetter, "an error was found getting lock status")
+		return 0, fmt.Errorf("GetLockStatus(%s): %s", v.DriveLetter, "an error was found getting lock status")
 	}
 
 	return lockStatus.Value().(int32), nil
